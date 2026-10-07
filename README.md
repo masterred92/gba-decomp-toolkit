@@ -20,6 +20,7 @@ MIT-licensed homebrew ROM built from source in `tests/homebrew/`.
 | Discover | `gbadt/discover.py` | strong clues (entry, Thumb `BL` targets, `addr|1` pointers in literal pools), weak clues (`PUSH {..,LR}`, ARM `STMFD`), then a *sweep* that finds each function's end (return + literal pool + padding) so small leaf functions after it are found and scheduled prologues don't split a function. Each segment records `found_by`. Still a heuristic |
 | Split + scaffold | `python3 -m gbadt init rom.gba projects/mygame` | one `.s` per function (raw `.2byte`/`.4byte` + objdump comments), data as `.incbin`, `config.json`, linker script, Makefile |
 | Rebuild + verify | `make -C projects/mygame` | `arm-none-eabi-as/ld/objcopy`, then `sha1sum -c` |
+| Find known functions | `python3 -m gbadt signatures build/match` | fingerprints with addresses masked, finds a named sibling's functions in your ROM, output feeds `import-symbols` ([docs/signatures.md](docs/signatures.md)) |
 | Match | `python3 -m gbadt match <proj> sub_08001234 guess.c --cc <compiler> --cflags ...` | compiles your C, compares bytes with the original function |
 
 Splitting is deliberately simple and always byte-identical. For symbolic, label-based
@@ -43,7 +44,9 @@ so the starting guess comes from Ghidra headless: `scripts/ghidra_guess.sh rom.g
 
 ## Tests
 `tests/run_tests.sh` builds the homebrew demo, runs `info`, `init`, `make compare` (OK), then
-matches `checksum()` with the correct C (MATCH) and a wrong version (MISMATCH). If camelot
+matches `checksum()` with the correct C (MATCH) and a wrong version (MISMATCH). It also builds
+the demo a second time with a different layout (`demo_b.gba`, two extra functions) and checks
+that signatures name all five shared functions there. If camelot
 gcc-2.96 is installed, `tests/check_gcc296.py` also checks its codegen fingerprints.
 
 ## Legal notes (not legal advice)
@@ -62,5 +65,6 @@ python3 -m gbadt import-symbols myproject sibling.syms [--offset 0x1234]
 Takes `nm` output, linker-script `name = 0x...;` lines, or `0xADDR name` pairs and renames
 any `sub_XXXXXXXX` whose start address matches. Unmatched symbols are reported, not applied.
 The build stays byte-identical (tested in `tests/run_tests.sh`). Typical use: a game sharing
-an engine with a finished project. Addresses rarely line up 1:1 across games, so expect to use
-`--offset` per region or pair functions by byte signature first.
+an engine with a finished project. Addresses rarely line up 1:1 across games, so pair functions
+by signature first: `gbadt signatures match sibling.sigs myproject -o hits.syms` writes a file
+`import-symbols` reads (see [docs/signatures.md](docs/signatures.md)).

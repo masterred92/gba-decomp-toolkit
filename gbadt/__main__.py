@@ -1,5 +1,5 @@
 import argparse, json, sys
-from . import header, scaffold, match, symbols
+from . import header, scaffold, match, symbols, signatures
 
 def main():
     ap = argparse.ArgumentParser(prog="gbadt", description="GBA matching-decomp scaffold generator")
@@ -12,6 +12,16 @@ def main():
     p = sub.add_parser("import-symbols", help="rename functions from a sibling symbol list")
     p.add_argument("project"); p.add_argument("symfile")
     p.add_argument("--offset", type=lambda x: int(x, 0), default=0, help="add to every symbol address")
+    p = sub.add_parser("signatures", help="fingerprint functions (addresses masked) to find them in another ROM")
+    ss = p.add_subparsers(dest="sigcmd", required=True)
+    q = ss.add_parser("build", help="write signatures for every function in a project")
+    q.add_argument("project"); q.add_argument("-o", "--out")
+    q = ss.add_parser("match", help="pair a named signature set with a target; prints import-symbols input")
+    q.add_argument("lib", help=".sigs file or named project"); q.add_argument("target", help="project or .sigs")
+    q.add_argument("-o", "--out"); q.add_argument("--min-size", type=int, default=8, help="skip functions shorter than this (bytes)")
+    q.add_argument("--include-unnamed", action="store_true", help="also transfer sub_XXXXXXXX names")
+    q = ss.add_parser("show", help="hex dump of one function with masked bytes as ..")
+    q.add_argument("project"); q.add_argument("func")
     sub.add_parser("compilers", help="list compiler profiles")
     sub.add_parser("match", help="compile C and compare against a function", add_help=False)
     a, rest = ap.parse_known_args()
@@ -30,6 +40,19 @@ def main():
         r = symbols.apply(a.project, open(a.symfile).read(), a.offset)
         for o, n in r["renamed"]: print(f"renamed {o} -> {n}")
         print(f"{len(r['renamed'])} renamed, {len(r['unmatched'])} symbols had no matching function start")
+    elif a.cmd == "signatures":
+        if a.sigcmd == "build":
+            txt = signatures.dump(signatures.build(a.project), a.project)
+            open(a.out, "w").write(txt) if a.out else sys.stdout.write(txt)
+            if a.out: print(f"wrote {txt.count(chr(10)) - 2} signatures to {a.out}")
+        elif a.sigcmd == "match":
+            hits, st = signatures.match(signatures.load(a.lib), signatures.load(a.target), a.min_size, a.include_unnamed)
+            txt = "# gbadt signatures match: feed to `gbadt import-symbols <project> <this file>`\n"
+            txt += "".join(f"0x{t:08X} {n}  # sig {s}, {z}B, was 0x{la:08X}\n" for t, n, s, z, la in hits)
+            open(a.out, "w").write(txt) if a.out else sys.stdout.write(txt)
+            print(", ".join(f"{k.replace('_', ' ')} {v}" for k, v in st.items()), file=sys.stderr)
+        else:
+            print(signatures.show(a.project, a.func))
     elif a.cmd == "compilers":
         profs = json.load(open(match.PROFILES))
         for k, v in profs.items():

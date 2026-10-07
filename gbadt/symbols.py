@@ -5,7 +5,7 @@ contain near-identical functions. A finished sibling project already named
 them. Importing its names into our scaffold turns `sub_08001234` into
 `UpdateEntity`, which tells you what a function does before you read it.
 
-Accepted formats (auto-detected per line, '#' and '@' lines ignored):
+Accepted formats (auto-detected per line, '#' and '@' lines and trailing '  # ...' ignored):
   nm:            08000194 T checksum
   linker script: checksum = 0x08000194;
   plain:         0x08000194 checksum
@@ -24,7 +24,7 @@ _PL = re.compile(r"^(0x[0-9A-Fa-f]+|[0-9A-Fa-f]{8})\s+(\w+)$")
 def parse(text: str) -> dict:
     syms = {}
     for line in text.splitlines():
-        line = line.strip()
+        line = line.split("  #")[0].strip()   # allow trailing "  # comment"
         if not line or line[0] in "#@": continue
         if m := _NM.match(line): a, n = int(m[1], 16), m[2]
         elif m := _LD.match(line): n, a = m[1], int(m[2], 16)

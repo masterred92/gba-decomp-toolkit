@@ -2,8 +2,8 @@
 # End-to-end test on our own MIT homebrew ROM only.
 set -euo pipefail
 cd "$(dirname "$0")"; R=$(pwd)/..
-make -s -C homebrew clean demo.gba
-cd "$R" && rm -rf tests/out
+make -s -C homebrew clean demo.gba demo_b.gba
+cd "$R" && rm -rf tests/out tests/out_b
 python3 -m gbadt info tests/homebrew/demo.gba --expect-sha1 "$(sha1sum tests/homebrew/demo.gba | cut -d' ' -f1)" >/dev/null
 python3 -m gbadt init tests/homebrew/demo.gba tests/out --compiler arm-none-eabi-gcc
 make -s -C tests/out compare
@@ -31,6 +31,27 @@ grep -q -- "-> checksum" /tmp/imp.txt
 test -f tests/out/asm/funcs/checksum.s
 make -s -C tests/out clean compare   # renaming must keep the build byte-identical
 python3 -m gbadt match tests/out checksum /tmp/fn.c --cflags "-mthumb -mthumb-interwork -mcpu=arm7tdmi -O2"
+# signatures: same program, different layout (demo_b has 2 extra functions). Name demo_b's
+# functions from the named tests/out project by masked-byte fingerprints alone.
+python3 -m gbadt init tests/homebrew/demo_b.gba tests/out_b --compiler arm-none-eabi-gcc >/dev/null
+python3 -m gbadt signatures build tests/out -o /tmp/demo_a.sigs
+python3 -m gbadt signatures match /tmp/demo_a.sigs tests/out_b -o /tmp/demo_b.syms
+python3 -m gbadt import-symbols tests/out_b /tmp/demo_b.syms
+python3 - <<'PY'
+import json, subprocess
+nm = subprocess.run(["arm-none-eabi-nm", "tests/homebrew/demo_b.elf"], capture_output=True, text=True).stdout
+addr = {n: int(a, 16) - 0x08000000 for a, t, n in (l.split() for l in nm.splitlines())}
+segs = {s["name"]: s for s in json.load(open("tests/out_b/config.json"))["segments"] if s["kind"] == "code"}
+for n in ["reset", "rgb15", "checksum", "fill_gradient", "main"]:
+    assert n in segs and segs[n]["start"] == addr[n], f"{n} not found at its demo_b address"
+for n in ["spacer_a", "spacer_b"]:
+    assert n not in segs, f"{n} exists only in demo_b, must not be named"
+a, b = (open(f, "rb").read() for f in ("tests/homebrew/demo.gba", "tests/homebrew/demo_b.gba"))
+ma = [s for s in json.load(open("tests/out/config.json"))["segments"] if s["name"] == "main"][0]
+assert a[ma["start"]:ma["end"]] != b[segs["main"]["start"]:segs["main"]["end"]], "main should differ in raw bytes"
+print("signatures: OK (5/5 named across layouts; main's raw bytes differ, signatures equal)")
+PY
+make -s -C tests/out_b clean compare
 # compiler profiles: list, select at init, bad name rejected, missing compiler reported
 python3 -m gbadt compilers | grep -q gcc-2.96-patched
 rm -rf /tmp/gbadt_prof && python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_prof --compiler gcc-2.96-patched >/dev/null

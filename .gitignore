@@ -8,3 +8,4 @@ build/
 __pycache__/
 /projects/
 tests/out/
+tests/out_b/
