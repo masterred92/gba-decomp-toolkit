@@ -50,3 +50,14 @@ holders have issued takedowns even against projects that shipped no original byt
 it bring-your-own-ROM, keep your work clean-room (no leaked source), and expect the risk.
 
 MIT licensed.
+
+## Importing names from a sibling decomp
+
+```
+python3 -m gbadt import-symbols myproject sibling.syms [--offset 0x1234]
+```
+Takes `nm` output, linker-script `name = 0x...;` lines, or `0xADDR name` pairs and renames
+any `sub_XXXXXXXX` whose start address matches. Unmatched symbols are reported, not applied.
+The build stays byte-identical (tested in `tests/run_tests.sh`). Typical use: a game sharing
+an engine with a finished project. Addresses rarely line up 1:1 across games, so expect to use
+`--offset` per region or pair functions by byte signature first.

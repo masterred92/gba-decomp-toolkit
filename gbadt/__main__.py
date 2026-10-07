@@ -1,5 +1,5 @@
 import argparse, json, sys
-from . import header, scaffold, match
+from . import header, scaffold, match, symbols
 
 def main():
     ap = argparse.ArgumentParser(prog="gbadt", description="GBA matching-decomp scaffold generator")
@@ -8,6 +8,9 @@ def main():
     p.add_argument("--expect-sha1")
     p = sub.add_parser("init", help="create project from ROM"); p.add_argument("rom"); p.add_argument("out")
     p.add_argument("--code-end", type=lambda x: int(x, 0))
+    p = sub.add_parser("import-symbols", help="rename functions from a sibling symbol list")
+    p.add_argument("project"); p.add_argument("symfile")
+    p.add_argument("--offset", type=lambda x: int(x, 0), default=0, help="add to every symbol address")
     sub.add_parser("match", help="compile C and compare against a function", add_help=False)
     a, rest = ap.parse_known_args()
     if a.cmd == "info":
@@ -20,6 +23,10 @@ def main():
         shutil.copyfile(a.rom, os.path.join(a.out, "baserom.gba"))
         n = sum(1 for s in cfg["segments"] if s["kind"] == "code")
         print(f"project at {a.out}: {n} functions, {len(cfg['segments'])} segments. Run: make -C {a.out}")
+    elif a.cmd == "import-symbols":
+        r = symbols.apply(a.project, open(a.symfile).read(), a.offset)
+        for o, n in r["renamed"]: print(f"renamed {o} -> {n}")
+        print(f"{len(r['renamed'])} renamed, {len(r['unmatched'])} symbols had no matching function start")
     elif a.cmd == "match":
         sys.exit(match.main(rest))
 main()

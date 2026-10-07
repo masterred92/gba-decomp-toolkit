@@ -13,4 +13,12 @@ printf 'typedef unsigned int u32;\nu32 checksum(const unsigned char *p, u32 n) {
 python3 -m gbadt match tests/out "sub_$ADDR" /tmp/fn.c --cflags "-mthumb -mthumb-interwork -mcpu=arm7tdmi -O2"
 printf 'typedef unsigned int u32;\nu32 checksum(const unsigned char *p, u32 n) { u32 s = 0; while (n--) s = (s << 1) ^ *p++; return s; }\n' > /tmp/fn_bad.c
 ! python3 -m gbadt match tests/out "sub_$ADDR" /tmp/fn_bad.c --cflags "-mthumb -mthumb-interwork -mcpu=arm7tdmi -O2"
+# import-symbols: use the demo's own nm output as a stand-in "sibling" symbol file
+arm-none-eabi-nm tests/homebrew/demo.elf > /tmp/demo.syms
+echo "main = 0x0FFFFFF0;" >> /tmp/demo.syms   # bogus address -> must be reported, not applied
+python3 -m gbadt import-symbols tests/out /tmp/demo.syms | tee /tmp/imp.txt
+grep -q -- "-> checksum" /tmp/imp.txt
+test -f tests/out/asm/funcs/checksum.s
+make -s -C tests/out clean compare   # renaming must keep the build byte-identical
+python3 -m gbadt match tests/out checksum /tmp/fn.c --cflags "-mthumb -mthumb-interwork -mcpu=arm7tdmi -O2"
 echo ALL TESTS PASSED
