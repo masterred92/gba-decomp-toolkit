@@ -110,8 +110,9 @@ def signature(code: bytes, start: int, mode: str):
 
 def build(project: str):
     """[(sig, size, addr, mode, name)] for every code segment of a gbadt project."""
+    from .match import project_rom
     cfg = json.load(open(os.path.join(project, "config.json")))
-    rom = open(os.path.join(project, "baserom.gba"), "rb").read()
+    rom = project_rom(project, cfg)
     out = []
     for sg in cfg["segments"]:
         if sg["kind"] != "code": continue
@@ -165,7 +166,8 @@ def show(project: str, func: str) -> str:
     """Hex dump of a function with masked bytes shown as '..' (for learning)."""
     cfg = json.load(open(os.path.join(project, "config.json")))
     sg = next(s for s in cfg["segments"] if s["name"] == func)
-    rom = open(os.path.join(project, "baserom.gba"), "rb").read()
+    from .match import project_rom
+    rom = project_rom(project, cfg)
     raw = rom[sg["start"]:sg["end"]]
     mb, m = masked(raw, sg["start"], sg["mode"])
     rows = []

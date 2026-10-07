@@ -40,7 +40,10 @@ def apply(project: str, text: str, offset: int = 0) -> dict:
     cfg = json.load(open(cfg_p))
     syms = {a + offset: n for a, n in parse(text).items()}
     used, renamed = set(), []
-    rom_s = open(os.path.join(project, "rom.s")).read()
+    rom_s_p = os.path.join(project, "rom.s")             # absent in notes-only projects
+    rom_s = open(rom_s_p).read() if os.path.exists(rom_s_p) else None
+    notes_p = os.path.join(project, "notes", "functions.md")
+    notes = open(notes_p).read() if os.path.exists(notes_p) else None
     for sg in cfg["segments"]:
         if sg["kind"] != "code": continue
         addr = BASE + sg["start"]
@@ -48,14 +51,21 @@ def apply(project: str, text: str, offset: int = 0) -> dict:
         if not new or new == sg["name"]: continue
         old = sg["name"]
         src, dst = f"asm/funcs/{old}.s", f"asm/funcs/{new}.s"
-        body = open(os.path.join(project, src)).read()
-        body = re.sub(rf"\b{old}\b", new, body)
-        open(os.path.join(project, dst), "w").write(body)
-        os.unlink(os.path.join(project, src))
-        rom_s = rom_s.replace(f'"{src}"', f'"{dst}"')
+        if os.path.exists(os.path.join(project, src)):
+            body = open(os.path.join(project, src)).read()
+            body = re.sub(rf"\b{old}\b", new, body)
+            open(os.path.join(project, dst), "w").write(body)
+            os.unlink(os.path.join(project, src))
+        if rom_s is not None:
+            rom_s = rom_s.replace(f'"{src}"', f'"{dst}"')
+        if notes is not None:
+            notes = notes.replace(f"`{old}`", f"`{new}`")
         sg["name"], sg["orig_name"] = new, old
         used.add(addr); renamed.append((old, new))
-    open(os.path.join(project, "rom.s"), "w").write(rom_s)
+    if rom_s is not None:
+        open(rom_s_p, "w").write(rom_s)
+    if notes is not None:
+        open(notes_p, "w").write(notes)
     json.dump(cfg, open(cfg_p, "w"), indent=1)
     unmatched = sorted((a, n) for a, n in syms.items() if a not in used)
     return {"renamed": renamed, "unmatched": unmatched}

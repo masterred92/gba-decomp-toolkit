@@ -9,6 +9,7 @@ def main():
     p = sub.add_parser("init", help="create project from ROM"); p.add_argument("rom"); p.add_argument("out")
     p.add_argument("--code-end", type=lambda x: int(x, 0))
     p.add_argument("--compiler", default="agbcc", help="compiler profile (compilers/profiles.json), e.g. gcc-2.96-patched")
+    p.add_argument("--mode", choices=scaffold.MODES, help="match (default for matching profiles), asm-only or notes-only (no-matching profiles like ads12 default to their own default_mode)")
     p = sub.add_parser("import-symbols", help="rename functions from a sibling symbol list")
     p.add_argument("project"); p.add_argument("symfile")
     p.add_argument("--offset", type=lambda x: int(x, 0), default=0, help="add to every symbol address")
@@ -32,10 +33,18 @@ def main():
     elif a.cmd == "init":
         import os, shutil
         match.load_profile(a.compiler)  # validate name early
-        cfg = scaffold.generate(a.rom, a.out, a.code_end, compiler=a.compiler)
-        shutil.copyfile(a.rom, os.path.join(a.out, "baserom.gba"))
+        meta = match.profile_meta(a.compiler)
+        mode = a.mode or ("match" if meta.get("matching", True) else meta.get("default_mode", "asm-only"))
+        if mode == "match" and not meta.get("matching", True):
+            sys.exit(f"profile {a.compiler} can't do matching: {meta.get('source', '')}. Use --mode asm-only or notes-only.")
+        cfg = scaffold.generate(a.rom, a.out, a.code_end, compiler=a.compiler, mode=mode)
         n = sum(1 for s in cfg["segments"] if s["kind"] == "code")
-        print(f"project at {a.out}: {n} functions, {len(cfg['segments'])} segments. Run: make -C {a.out}")
+        if mode == "notes-only":
+            print(f"notes-only project at {a.out}: {n} functions listed in {a.out}/notes/functions.md (ROM read in place, not copied)")
+        else:
+            shutil.copyfile(a.rom, os.path.join(a.out, "baserom.gba"))
+            extra = " Matching is off; document functions in notes/functions.md." if mode == "asm-only" else ""
+            print(f"project at {a.out}: {n} functions, {len(cfg['segments'])} segments. Run: make -C {a.out}.{extra}")
     elif a.cmd == "import-symbols":
         r = symbols.apply(a.project, open(a.symfile).read(), a.offset)
         for o, n in r["renamed"]: print(f"renamed {o} -> {n}")
@@ -56,7 +65,9 @@ def main():
     elif a.cmd == "compilers":
         profs = json.load(open(match.PROFILES))
         for k, v in profs.items():
-            if not k.startswith("_"): print(f"{k:20} {v['cc']}\n{'':20} from: {v['source']}")
+            if k.startswith("_"): continue
+            cc = v["cc"] or f"(no matching: {v.get('default_mode', 'asm-only')} / notes-only)"
+            print(f"{k:20} {cc}\n{'':20} from: {v['source']}")
     elif a.cmd == "match":
         sys.exit(match.main(rest))
 main()

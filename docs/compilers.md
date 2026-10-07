@@ -23,6 +23,7 @@ The toolkit never ships compiler binaries or source. Each profile points to wher
 | `agbcc`, `old_agbcc` | `scripts/install_agbcc.sh <project>` ([pret/agbcc](https://github.com/pret/agbcc)) | `<project>/tools/agbcc` (`AGBCC_DIR`) |
 | `gcc-2.96-patched` | `scripts/install_camelot_gcc.sh` ([Coaltergeist/camelot-gcc](https://github.com/Coaltergeist/camelot-gcc)) | `<project>/tools/gcc296`, or set `GCC296_DIR=~/tools/gcc296` |
 | `arm-none-eabi-gcc` | `scripts/install_toolchain.sh` | on `PATH` |
+| `ads12` | not obtainable (see below): **no matching**, asm-only or notes-only | n/a |
 
 ### gcc-2.96-patched (Camelot / Golden Sun)
 **Verified on our box on 2026-10-07** (Debian, host gcc 14.2, no sudo), camelot-gcc commit
@@ -81,6 +82,36 @@ toolkit runs `xgcc -S` then `arm-none-eabi-as`, like the goldensun build. It is 
 development snapshot, patched to build on modern Linux and to make output deterministic (symbol
 hashing by name, zero-filled `.align`).
 
+### ads12 (ARM Developer Suite 1.2: no matching)
+Some studios didn't use GCC at all. Webfoot (the Dragon Ball Z GBA games: Legacy of Goku I/II,
+Buu's Fury) used **ARM Developer Suite 1.2**: `armcc`/`tcc` for C, `armcpp`/`tcpp` for C++.
+ADS was commercial, licence-locked and discontinued, and there's no free legal copy, so we can't
+compile C and compare bytes. Byte-matching is off for this profile; you pick one of two modes:
+
+```sh
+python3 -m gbadt init mygame.gba projects/dbz --compiler ads12                    # asm-only (default)
+python3 -m gbadt init mygame.gba projects/dbz --compiler ads12 --mode notes-only
+```
+
+| Mode | What you get | Good for |
+|---|---|---|
+| `asm-only` | the usual split asm + Makefile that rebuilds the exact ROM; `CC1` is blanked; `match` refuses; `notes/functions.md` | labelling and renaming functions, carving data out of the big blobs, later making the asm "shiftable" |
+| `notes-only` | `config.json` + `notes/functions.md` only. No asm, no build, and the ROM isn't copied (read in place) | pure research: mapping the engine, documenting functions and formats |
+
+`signatures` and `import-symbols` work in both modes (`import-symbols` also renames entries in
+`notes/functions.md`). Any profile can use `--mode asm-only`/`notes-only`, but `ads12` can't use
+`--mode match`. To *experiment* anyway, `match --cc ... --cflags ...` still runs a compiler you name.
+
+**Tutor's note: why not just use GCC?** Same C, different compiler = different bytes. armcc picks
+registers differently, places literal pools differently (and shares them between functions), and
+uses its own interworking veneers. A GCC "match" of ADS code would be a fake. Clues a ROM was built
+with ADS: C++ vtables (Webfoot used `armcpp`), linker-made interworking veneers instead of GCC's
+`_call_via_rX` stubs, and pools shared by neighbouring functions (we haven't confirmed these on a
+real ADS binary yet). If you need something *playable*, a
+static recompiler (see decomp-library 18-dbz-gba.md) sidesteps the compiler entirely.
+
 ## Adding a profile
 Add an entry with `kind` (`cc1` = takes preprocessed C on stdin and emits asm, like agbcc;
-`driver` = gcc-style driver), `cc`, `cflags`, `source`. `${VAR:-default}` is expanded.
+`driver` = gcc-style driver; `none` = no compiler), `cc`, `cflags`, `source`. `${VAR:-default}` is
+expanded. A profile with `"matching": false` and a `default_mode` (`asm-only`/`notes-only`)
+can't be used for `match`, like `ads12`.

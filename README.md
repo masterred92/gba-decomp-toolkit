@@ -36,6 +36,9 @@ disassembler); splat targets MIPS/PPC-era consoles and is not used here.
   `--profile` on `match`); see [docs/compilers.md](docs/compilers.md). Includes
   `gcc-2.96-patched` for Camelot titles (Golden Sun): `scripts/install_camelot_gcc.sh` builds
   camelot-gcc in user space (verified on our box, see docs/compilers.md), not vendored.
+* Games built with a compiler nobody can legally get (ARM ADS 1.2, e.g. the Webfoot DBZ titles)
+  use `--compiler ads12`: **no matching**, an `asm-only` (rebuildable, for labelling) or
+  `notes-only` (function table, no build) project instead.
 
 ## AI-assisted match loop (stub)
 `gbadt/match.py` has the compile, compare and score parts. `propose()` is where you plug in a

@@ -24,14 +24,28 @@ def load_profile(name, project=None):
     if project and os.sep in cc and not os.path.isabs(cc):
         cc = os.path.join(project, cc)
     cflags = _expand(p["cflags"])
+    if p.get("matching", True) is False:
+        return cc, cflags, "none"
     if project:
         cflags = re.sub(r"-B(?!/)(\S+)", lambda m: "-B" + os.path.join(project, m.group(1)), cflags)
     return cc, cflags, p["kind"]
 
+def profile_meta(name):
+    """Raw profile dict (matching flag, default_mode, notes...)."""
+    return json.load(open(PROFILES))[name]
+
+def project_rom(project, cfg=None):
+    """ROM bytes for a project: its baserom.gba, or (notes-only projects) the path in config."""
+    cfg = cfg or json.load(open(os.path.join(project, "config.json")))
+    p = os.path.join(project, "baserom.gba")
+    if not os.path.exists(p) and cfg.get("rom"):
+        p = cfg["rom"]
+    return open(p, "rb").read()
+
 def target_bytes(project, func):
     cfg = json.load(open(os.path.join(project, "config.json")))
     sg = next(s for s in cfg["segments"] if s["name"] == func)
-    rom = open(os.path.join(project, "baserom.gba"), "rb").read()
+    rom = project_rom(project, cfg)
     return rom[sg["start"]:sg["end"]], sg
 
 def compile_c(c_path, cc1, cflags, prefix="arm-none-eabi-", kind=None):
@@ -71,6 +85,10 @@ def main(argv=None):
     cfg = json.load(open(os.path.join(a.project, "config.json")))
     name = a.profile or cfg.get("compiler", "arm-none-eabi-gcc")
     cc, cflags, kind = load_profile(name, a.project)
+    if (kind == "none" or cfg.get("mode", "match") != "match") and not a.cc:
+        raise SystemExit(f"matching is disabled for this project (profile {name}, mode {cfg.get('mode', 'match')}): "
+                         "its original compiler isn't available, so byte-matching C can't be checked. "
+                         "Document the function in notes/ instead, or pass --cc/--profile to experiment.")
     if a.cc: cc, kind = a.cc, None
     if a.cflags: cflags = a.cflags
     if os.sep in cc and not os.path.exists(cc):

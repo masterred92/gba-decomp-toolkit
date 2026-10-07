@@ -59,6 +59,19 @@ grep -q '"compiler": "gcc-2.96-patched"' /tmp/gbadt_prof/config.json
 grep -q 'fcall-used-r4' /tmp/gbadt_prof/Makefile
 if python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_bad --compiler nope 2>/dev/null; then echo "bad profile accepted"; exit 1; fi
 (env -u GCC296_DIR python3 -m gbadt match /tmp/gbadt_prof checksum /tmp/fn.c 2>&1 || true) | grep -q "compiler not found"
+# ads12 (no-matching profile): asm-only by default, still byte-identical; match refuses;
+# notes-only makes a function table without copying the ROM; --mode match is rejected
+rm -rf /tmp/gbadt_ads /tmp/gbadt_adsn /tmp/gbadt_adsx
+python3 -m gbadt compilers | grep -q "ads12.*no matching"
+python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_ads --compiler ads12 >/dev/null
+grep -q '"mode": "asm-only"' /tmp/gbadt_ads/config.json && grep -q "MATCHING DISABLED" /tmp/gbadt_ads/Makefile
+make -s -C /tmp/gbadt_ads compare >/dev/null
+(python3 -m gbadt match /tmp/gbadt_ads sub_08000108 /tmp/fn.c 2>&1 || true) | grep -q "matching is disabled"
+python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_adsn --compiler ads12 --mode notes-only >/dev/null
+test ! -e /tmp/gbadt_adsn/baserom.gba && test ! -d /tmp/gbadt_adsn/asm
+test "$(grep -c '^| `08' /tmp/gbadt_adsn/notes/functions.md)" = 5
+python3 -m gbadt import-symbols /tmp/gbadt_adsn /tmp/demo.syms >/dev/null && grep -q '`rgb15`' /tmp/gbadt_adsn/notes/functions.md
+if python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_adsx --compiler ads12 --mode match 2>/dev/null; then echo "ads12 match accepted"; exit 1; fi
 echo "profiles: OK"
 python3 tests/check_gcc296.py   # skips if camelot gcc-2.96 is not installed
 echo ALL TESTS PASSED

@@ -24,5 +24,14 @@
     "cc": "arm-none-eabi-gcc",
     "cflags": "-mthumb -mcpu=arm7tdmi -O2",
     "source": "system ARM GNU toolchain (scripts/install_toolchain.sh); modern, for homebrew/tests only"
+  },
+  "ads12": {
+    "kind": "none",
+    "cc": "",
+    "cflags": "",
+    "matching": false,
+    "default_mode": "asm-only",
+    "source": "ARM Developer Suite 1.2 (armcc/tcc/armcpp, 2001-02): proprietary, FLEXlm-licensed, discontinued; no free legal download, so this toolkit never runs it",
+    "notes": "For ADS-built games (e.g. Webfoot's Dragon Ball Z GBA titles). No byte matching: init makes an asm-only project (byte-identical split for labelling/documenting) or a notes-only project (function table, no build). See docs/compilers.md."
   }
 }
