@@ -31,7 +31,7 @@ def _objdump(chunk: bytes, mode: str, vma: int) -> dict:
             except ValueError: pass
     return res
 
-def generate(rom_path: str, out: str, code_end: int | None = None) -> dict:
+def generate(rom_path: str, out: str, code_end: int | None = None, compiler: str = "agbcc") -> dict:
     rom = open(rom_path, "rb").read()
     h = header.parse(rom)
     os.makedirs(f"{out}/asm/funcs", exist_ok=True)
@@ -73,14 +73,16 @@ def generate(rom_path: str, out: str, code_end: int | None = None) -> dict:
         with open(f"{out}/{path}", "w") as f:
             f.write(f"@ {n}  rom {a:#x}-{b:#x}\n" + body)
         order.append(path)
-    cfg = {"header": h, "segments": segs}
+    cfg = {"header": h, "compiler": compiler, "segments": segs}
     json.dump(cfg, open(f"{out}/config.json", "w"), indent=1)
     with open(f"{out}/rom.s", "w") as f:
         f.write("\t.syntax unified\n\t.section .text\n" + "".join(f'\t.include "{p}"\n' for p in order))
     with open(f"{out}/ld_script.ld", "w") as f:
         f.write("SECTIONS {\n  . = 0x08000000;\n  .text : { *(.text) }\n}\n")
     with open(f"{out}/Makefile", "w") as f:
-        f.write(MAKEFILE.replace("@SHA1@", h["sha1"]))
+        from .match import load_profile
+        cc, cflags, _ = load_profile(compiler)
+        f.write(MAKEFILE.replace("@SHA1@", h["sha1"]).replace("@COMPILER@", compiler).replace("@CC@", cc).replace("@CFLAGS@", cflags))
     with open(f"{out}/rom.sha1", "w") as f:
         f.write(f"{h['sha1']}  build/rom.gba\n")
     return cfg
@@ -91,9 +93,10 @@ AS := $(PREFIX)as
 LD := $(PREFIX)ld
 OBJCOPY := $(PREFIX)objcopy
 # Compiler for matched C. pret/agbcc for most GBA titles; some games used other
-# GCC versions (e.g. Golden Sun: patched gcc-2.96). Override: make CC1=...
-CC1 ?= tools/agbcc/bin/agbcc
-CFLAGS ?= -mthumb-interwork -O2 -fhex-asm
+# GCC versions (e.g. Golden Sun: patched gcc-2.96). Selected profile: @COMPILER@
+# (see compilers/profiles.json in gba-decomp-toolkit). Override: make CC1=... CFLAGS=...
+CC1 ?= @CC@
+CFLAGS ?= @CFLAGS@
 
 all: compare
 build/rom.elf: rom.s $(wildcard asm/*/*.s) ld_script.ld

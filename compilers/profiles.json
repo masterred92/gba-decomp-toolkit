@@ -1,0 +1,28 @@
+{
+  "_doc": "Compiler profiles. A project selects one via \"compiler\" in its config.json or --profile. Paths are relative to the project dir unless absolute; ${VAR} env vars expand. Nothing here is vendored: see docs/compilers.md for how to obtain each.",
+  "agbcc": {
+    "kind": "cc1",
+    "cc": "${AGBCC_DIR:-tools/agbcc}/bin/agbcc",
+    "cflags": "-mthumb-interwork -O2 -fhex-asm",
+    "source": "https://github.com/pret/agbcc (scripts/install_agbcc.sh)"
+  },
+  "old_agbcc": {
+    "kind": "cc1",
+    "cc": "${AGBCC_DIR:-tools/agbcc}/bin/old_agbcc",
+    "cflags": "-mthumb-interwork -O2 -fhex-asm",
+    "source": "pret/agbcc; used for stock m4a/Sappy sound engine code"
+  },
+  "gcc-2.96-patched": {
+    "kind": "driver",
+    "cc": "${GCC296_DIR:-tools/gcc296}/xgcc",
+    "cflags": "-B${GCC296_DIR:-tools/gcc296}/ -O2 -mthumb -mthumb-interwork -mcpu=arm7tdmi -fno-builtin -nostdinc -ffreestanding -fcall-used-r4 -fno-strict-aliasing",
+    "source": "https://github.com/Coaltergeist/camelot-gcc (./build.sh gcc296 && ./install.sh <project> gcc296)",
+    "notes": "Flag set mirrors Coaltergeist/goldensun-decomp Makefile (checked 2026-10-07). Driver emits asm via -S, then arm-none-eabi-as."
+  },
+  "arm-none-eabi-gcc": {
+    "kind": "driver",
+    "cc": "arm-none-eabi-gcc",
+    "cflags": "-mthumb -mcpu=arm7tdmi -O2",
+    "source": "system ARM GNU toolchain (scripts/install_toolchain.sh); modern, for homebrew/tests only"
+  }
+}

@@ -31,8 +31,9 @@ disassembler); splat targets MIPS/PPC-era consoles and is not used here.
 * Most first-party/Japanese GBA titles were built with an old GCC; pret's
   [agbcc](https://github.com/pret/agbcc) recreates it. `scripts/install_agbcc.sh <project>`
   clones and builds it (not vendored here).
-* Not every game used agbcc. Find the right compiler first (e.g. Golden Sun community work
-  points to a patched gcc-2.96; some Western studios used ARM's own SDT/ADS compilers).
+* Not every game used agbcc. Projects pick a compiler **profile** (`--compiler` on `init`,
+  `--profile` on `match`); see [docs/compilers.md](docs/compilers.md). Includes
+  `gcc-2.96-patched` for Camelot titles (Golden Sun) via camelot-gcc, not vendored.
 
 ## AI-assisted match loop (stub)
 `gbadt/match.py` has the compile, compare and score parts. `propose()` is where you plug in a
