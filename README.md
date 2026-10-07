@@ -17,7 +17,7 @@ MIT-licensed homebrew ROM built from source in `tests/homebrew/`.
 | Step | Command / file | Notes |
 |---|---|---|
 | Identify | `python3 -m gbadt info rom.gba --expect-sha1 <sha1>` | header title/code/maker, 0x96 byte, complement check, entry branch, SHA1 |
-| Discover | `gbadt/discover.py` | entry target, Thumb `BL` targets, `PUSH {..,LR}`, ARM `STMFD SP!`, Thumb pointers in literal pools. Heuristic: misses inlined/leaf functions and can split oddly scheduled prologues |
+| Discover | `gbadt/discover.py` | strong clues (entry, Thumb `BL` targets, `addr|1` pointers in literal pools), weak clues (`PUSH {..,LR}`, ARM `STMFD`), then a *sweep* that finds each function's end (return + literal pool + padding) so small leaf functions after it are found and scheduled prologues don't split a function. Each segment records `found_by`. Still a heuristic |
 | Split + scaffold | `python3 -m gbadt init rom.gba projects/mygame` | one `.s` per function (raw `.2byte`/`.4byte` + objdump comments), data as `.incbin`, `config.json`, linker script, Makefile |
 | Rebuild + verify | `make -C projects/mygame` | `arm-none-eabi-as/ld/objcopy`, then `sha1sum -c` |
 | Match | `python3 -m gbadt match <proj> sub_08001234 guess.c --cc <compiler> --cflags ...` | compiles your C, compares bytes with the original function |

@@ -7,6 +7,16 @@ cd "$R" && rm -rf tests/out
 python3 -m gbadt info tests/homebrew/demo.gba --expect-sha1 "$(sha1sum tests/homebrew/demo.gba | cut -d' ' -f1)" >/dev/null
 python3 -m gbadt init tests/homebrew/demo.gba tests/out --compiler arm-none-eabi-gcc
 make -s -C tests/out compare
+# discovery: every real function in the demo (incl. the push-less leaf rgb15) starts a segment,
+# and main (whose PUSH comes after 3 scheduled instructions) is not split in two
+python3 - <<'PY'
+import json, subprocess
+nm = subprocess.run(["arm-none-eabi-nm", "tests/homebrew/demo.elf"], capture_output=True, text=True).stdout
+want = {int(a, 16) - 0x08000000: n for a, t, n in (l.split() for l in nm.splitlines()) if t in "Tt" and n != "_start"}
+segs = {s["start"]: s for s in json.load(open("tests/out/config.json"))["segments"] if s["kind"] == "code"}
+assert set(segs) == set(want), f"discovered {sorted(map(hex, segs))}, expected {sorted(map(hex, want))}"
+print("discovery: OK", ", ".join(f"{want[o]}<-{segs[o]['found_by']}" for o in sorted(want)))
+PY
 # match loop: compile checksum() alone with the demo's compiler, compare vs discovered function
 ADDR=$(arm-none-eabi-nm tests/homebrew/demo.elf | awk '/ T checksum$/{print toupper($1)}')
 printf 'typedef unsigned int u32;\nu32 checksum(const unsigned char *p, u32 n) { u32 s = 0; while (n--) s = (s << 1 | s >> 31) ^ *p++; return s; }\n' > /tmp/fn.c

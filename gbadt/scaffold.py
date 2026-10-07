@@ -38,7 +38,7 @@ def generate(rom_path: str, out: str, code_end: int | None = None, compiler: str
     os.makedirs(f"{out}/asm/data", exist_ok=True)
     os.makedirs(f"{out}/src", exist_ok=True)
     code_end = code_end or len(rom)
-    funcs = discover.discover(rom, 0xC0, code_end)
+    funcs = discover.discover_detailed(rom, 0xC0, code_end)
     starts = sorted(funcs)
     segs = [{"name": "header", "start": 0, "end": 0xC0, "kind": "data"}]
     cur = 0xC0
@@ -47,7 +47,8 @@ def generate(rom_path: str, out: str, code_end: int | None = None, compiler: str
         if s > cur:
             segs.append({"name": f"data_{BASE+cur:08X}", "start": cur, "end": s, "kind": "data"})
         e = next((x for x in starts[i+1:] if x > s), code_end)
-        segs.append({"name": f"sub_{BASE+s:08X}", "start": s, "end": e, "kind": "code", "mode": funcs[s]})
+        segs.append({"name": f"sub_{BASE+s:08X}", "start": s, "end": e, "kind": "code",
+                     "mode": funcs[s]["mode"], "found_by": funcs[s]["why"]})
         cur = e
     if cur < len(rom):
         segs.append({"name": f"data_{BASE+cur:08X}", "start": cur, "end": len(rom), "kind": "data"})
