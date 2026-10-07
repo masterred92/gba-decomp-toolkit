@@ -1,0 +1,10 @@
+*.gba
+*.bin
+*.elf
+*.o
+*.sav
+baserom*
+build/
+__pycache__/
+/projects/
+tests/out/

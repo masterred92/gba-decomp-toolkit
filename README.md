@@ -1,0 +1,52 @@
+# gba-decomp-toolkit
+
+A general-purpose scaffold generator for **matching decompilation** of Game Boy Advance
+software. Point it at a ROM *you* own and it builds a project that reassembles to a
+byte-identical ROM, which you then replace function by function with C.
+
+It is not tied to any game, contains no game code or assets, and is tested only on a tiny
+MIT-licensed homebrew ROM built from source in `tests/homebrew/`.
+
+## Bring your own ROM
+* You supply `baserom.gba` from your own cartridge. It is copied into your local project only.
+* `.gitignore` blocks `*.gba`, `*.bin`, `baserom*` and generated `projects/`.
+* Share **only** your own work: configs, symbol names, matched C, notes, tools. Never ROMs,
+  extracted assets, or the generated `asm/` that encodes the original bytes.
+
+## Pipeline
+| Step | Command / file | Notes |
+|---|---|---|
+| Identify | `python3 -m gbadt info rom.gba --expect-sha1 <sha1>` | header title/code/maker, 0x96 byte, complement check, entry branch, SHA1 |
+| Discover | `gbadt/discover.py` | entry target, Thumb `BL` targets, `PUSH {..,LR}`, ARM `STMFD SP!`, Thumb pointers in literal pools. Heuristic: misses inlined/leaf functions and can split oddly scheduled prologues |
+| Split + scaffold | `python3 -m gbadt init rom.gba projects/mygame` | one `.s` per function (raw `.2byte`/`.4byte` + objdump comments), data as `.incbin`, `config.json`, linker script, Makefile |
+| Rebuild + verify | `make -C projects/mygame` | `arm-none-eabi-as/ld/objcopy`, then `sha1sum -c` |
+| Match | `python3 -m gbadt match <proj> sub_08001234 guess.c --cc <compiler> --cflags ...` | compiles your C, compares bytes with the original function |
+
+Splitting is deliberately simple and always byte-identical. For symbolic, label-based
+disassembly you can swap in [luvdis](https://github.com/aarant/luvdis) (a GBA-specific Thumb
+disassembler); splat targets MIPS/PPC-era consoles and is not used here.
+
+## Compilers
+* Toolchain: `scripts/install_toolchain.sh` installs the ARM GNU toolchain in user space.
+* Most first-party/Japanese GBA titles were built with an old GCC; pret's
+  [agbcc](https://github.com/pret/agbcc) recreates it. `scripts/install_agbcc.sh <project>`
+  clones and builds it (not vendored here).
+* Not every game used agbcc. Find the right compiler first (e.g. Golden Sun community work
+  points to a patched gcc-2.96; some Western studios used ARM's own SDT/ADS compilers).
+
+## AI-assisted match loop (stub)
+`gbadt/match.py` has the compile, compare and score parts. `propose()` is where you plug in a
+model, giving it the target asm, a starting guess and the last diff. **m2c has no ARM backend**,
+so the starting guess comes from Ghidra headless: `scripts/ghidra_guess.sh rom.gba 0x08000108 thumb`.
+
+## Tests
+`tests/run_tests.sh` builds the homebrew demo, runs `info`, `init`, `make compare` (OK), then
+matches `checksum()` with the correct C (MATCH) and a wrong version (MISMATCH).
+
+## Legal notes (not legal advice)
+Reverse engineering software you own for interoperability and study is broadly tolerated in
+many places, but redistributing decompiled output or assets can infringe copyright. Rights
+holders have issued takedowns even against projects that shipped no original bytes. Keep
+it bring-your-own-ROM, keep your work clean-room (no leaked source), and expect the risk.
+
+MIT licensed.
