@@ -33,7 +33,8 @@ disassembler); splat targets MIPS/PPC-era consoles and is not used here.
   clones and builds it (not vendored here).
 * Not every game used agbcc. Projects pick a compiler **profile** (`--compiler` on `init`,
   `--profile` on `match`); see [docs/compilers.md](docs/compilers.md). Includes
-  `gcc-2.96-patched` for Camelot titles (Golden Sun) via camelot-gcc, not vendored.
+  `gcc-2.96-patched` for Camelot titles (Golden Sun): `scripts/install_camelot_gcc.sh` builds
+  camelot-gcc in user space (verified on our box, see docs/compilers.md), not vendored.
 
 ## AI-assisted match loop (stub)
 `gbadt/match.py` has the compile, compare and score parts. `propose()` is where you plug in a
@@ -42,7 +43,8 @@ so the starting guess comes from Ghidra headless: `scripts/ghidra_guess.sh rom.g
 
 ## Tests
 `tests/run_tests.sh` builds the homebrew demo, runs `info`, `init`, `make compare` (OK), then
-matches `checksum()` with the correct C (MATCH) and a wrong version (MISMATCH).
+matches `checksum()` with the correct C (MATCH) and a wrong version (MISMATCH). If camelot
+gcc-2.96 is installed, `tests/check_gcc296.py` also checks its codegen fingerprints.
 
 ## Legal notes (not legal advice)
 Reverse engineering software you own for interoperability and study is broadly tolerated in

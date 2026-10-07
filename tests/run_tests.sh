@@ -27,6 +27,7 @@ rm -rf /tmp/gbadt_prof && python3 -m gbadt init tests/homebrew/demo.gba /tmp/gba
 grep -q '"compiler": "gcc-2.96-patched"' /tmp/gbadt_prof/config.json
 grep -q 'fcall-used-r4' /tmp/gbadt_prof/Makefile
 if python3 -m gbadt init tests/homebrew/demo.gba /tmp/gbadt_bad --compiler nope 2>/dev/null; then echo "bad profile accepted"; exit 1; fi
-(python3 -m gbadt match /tmp/gbadt_prof checksum /tmp/fn.c 2>&1 || true) | grep -q "compiler not found"
+(env -u GCC296_DIR python3 -m gbadt match /tmp/gbadt_prof checksum /tmp/fn.c 2>&1 || true) | grep -q "compiler not found"
 echo "profiles: OK"
+python3 tests/check_gcc296.py   # skips if camelot gcc-2.96 is not installed
 echo ALL TESTS PASSED
