@@ -1,0 +1,19 @@
+{
+  "repo": "../my-decomp",
+  "asm_dir": "asm",
+  "src_dir": "src",
+  "func_start": "thumb_func_start",
+  "build_cmd": "make -j1 {obj}",
+  "cc": "tools/agbcc/bin/agbcc",
+  "cflags": "-O2 -mthumb-interwork -fhex-asm",
+  "obj_path": "build/obj/{stem}.o",
+  "ref_obj_path": "../my-decomp-ref/build/obj/{stem}.o",
+  "objdump": "arm-none-eabi-objdump",
+  "env_script": "",
+  "build_timeout": 300,
+  "m2c": "~/tools/m2c/m2c.py",
+  "m2c_args": ["-t", "gba", "--valid-syntax", "--globals=used"],
+  "permuter": "~/tools/decomp-permuter",
+  "typedefs": ["s8", "u8", "s16", "u16", "s32", "u32", "s64", "u64", "vu8", "vu16", "vu32", "bool8", "bool16", "bool32"],
+  "work_dir": ".accel"
+}

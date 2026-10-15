@@ -9,3 +9,7 @@ __pycache__/
 /projects/
 tests/out/
 tests/out_b/
+
+# accel tools: local config and scratch
+accel.json
+.accel/
